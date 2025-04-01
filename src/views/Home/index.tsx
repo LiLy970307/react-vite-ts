@@ -1,20 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "antd";
 import { useNavigate } from "react-router-dom";
-import { fetchData } from "@/api";
+import { addUser } from "../../api/index";
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
-  const [data, setData] = useState({ userName: "111", email: "222" });
+  const [data, setData] = useState({ username: "111", email: "223332",password:'123456' });
 
   useEffect(() => {
-    fetchData("/users/createUser") // 替换为你的实际接口路径
-      .then((data: any) => {
-        setData(data);
-      })
-      .catch((error: string) => {
-        console.error("There was an error!", error);
-      });
+    addUser(data).then((res: any) => {
+
+    });
   }, []);
 
   return (

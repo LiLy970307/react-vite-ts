@@ -1,21 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "antd";
 import { useNavigate } from "react-router-dom";
-import { fetchData } from "@/api";
 
 const About: React.FC = () => {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
-
-  useEffect(() => {
-    fetchData('/another-endpoint') // 替换为你的实际接口路径
-      .then(data => {
-        setData(data);
-      })
-      .catch(error => {
-        console.error("There was an error!", error);
-      });
-  }, []);
 
   return (
     <div style={{ padding: 20 }}>
