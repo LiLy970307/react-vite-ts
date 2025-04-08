@@ -4,6 +4,7 @@ import {
   Droppable,
   Draggable,
   DropResult,
+  DragUpdate,
   DraggableProvided,
   DraggableStateSnapshot,
   DroppableProvided,
@@ -36,6 +37,9 @@ const App: React.FC = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [newGroupName, setNewGroupName] = useState("");
+  const [combnieItemId, setCombineItemId] = useState<string | null>(null);
+  const [ableToCombine, setAbleToCombine] = useState(false);
+  const [timer, setTimer] = useState<NodeJS.Timeout | null>(null);
 
   // 工具函数：检查分组是否为空
   const isGroupEmpty = (groupId: string | null, items: Item[]): boolean => {
@@ -101,6 +105,27 @@ const App: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    console.log(ableToCombine);
+  }, [ableToCombine]);
+
+  // 处理拖拽更新
+  const onDragUpdate = (update: DragUpdate) => {
+    console.log(update);
+    const { combine } = update;
+    if (combine) {
+      const timers = setTimeout(() => {
+        setAbleToCombine(true);
+      }, 800);
+      setTimer(timers);
+    } else {
+      setAbleToCombine(false);
+      clearTimeout(timer!);
+    }
+    // setCombineItemId(combine?.draggableId || null);
+    // if (!destination) return;
+  };
+
   // 创建新分组
   const createNewGroup = (itemId: string) => {
     const newGroupId = `group-${Date.now()}`;
@@ -119,6 +144,7 @@ const App: React.FC = () => {
     setItems(updatedItems);
     setGroups(updatedGroups);
     message.success(`已创建新分组 ${newGroupName}`);
+    setAbleToCombine(false);
   };
 
   // 添加到现有分组
@@ -187,6 +213,8 @@ const App: React.FC = () => {
     const { source, destination, combine, draggableId } = result;
     console.log(result);
 
+    if (combine && !ableToCombine) return;
+
     // 1. 处理合并操作（拖拽到另一项上）
     if (combine) {
       const draggedItemId = draggableId; // 被拖拽的项（A项）
@@ -224,6 +252,8 @@ const App: React.FC = () => {
       setItems(updatedItems);
       setGroups(updatedGroups);
       message.success(`已创建新分组 "${newGroupName}" 并添加选中项`);
+      clearTimeout(timer!);
+      setAbleToCombine(false);
       return;
     }
 
@@ -334,7 +364,7 @@ const App: React.FC = () => {
 
   return (
     <div style={{ padding: "20px", minHeight: "100vh" }}>
-      <DragDropContext onDragEnd={onDragEnd}>
+      <DragDropContext onDragEnd={onDragEnd} onDragUpdate={onDragUpdate}>
         <div
           style={{
             display: "flex",
@@ -371,19 +401,36 @@ const App: React.FC = () => {
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
+                              //   className={
+                              //     snapshot.combineWith ? "combine-highlight" : ""
+                              //   }
                               style={{
                                 padding: "12px",
                                 margin: "8px 0",
-                                background: snapshot.combineWith
-                                  ? "#bbdefb"
-                                  : "white",
+                                backgroundColor:
+                                  snapshot.combineTargetFor && ableToCombine
+                                    ? "#bbdefb"
+                                    : "transparent",
+                                transition: snapshot.combineTargetFor
+                                  ? "background-color 2s ease"
+                                  : "none", // 仅在激活时应用
+                                // 强制重绘
+                                transform: "translateZ(0)",
                                 borderRadius: "4px",
-                                border: "1px solid #ddd",
-                                color: "#000",
                                 ...provided.draggableProps.style,
                               }}
                             >
-                              {item.content}
+                              <div
+                                style={{
+                                  padding: "12px",
+                                  background: "white",
+                                  borderRadius: "4px",
+                                  border: "1px solid #ddd",
+                                  color: "#000",
+                                }}
+                              >
+                                {item.content}
+                              </div>
                             </div>
                           )}
                         </Draggable>
@@ -397,7 +444,7 @@ const App: React.FC = () => {
           )}
           {/* 已分组的项目 */}
           {groups.map((group) => (
-            <div key={group.id}>
+            <div key={group.id} className="group-container">
               <Dropdown menu={getGroupMenu(group.id)} trigger={["contextMenu"]}>
                 <div
                   style={{
