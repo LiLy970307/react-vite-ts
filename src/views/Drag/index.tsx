@@ -9,7 +9,7 @@ import {
   DraggableStateSnapshot,
   DroppableProvided,
 } from "@hello-pangea/dnd";
-import { Dropdown, Menu, message, Input } from "antd";
+import { Dropdown, Menu, message, Input, Row, Col } from "antd";
 import type { MenuProps } from "antd";
 
 interface Item {
@@ -26,12 +26,12 @@ interface Group {
 
 const App: React.FC = () => {
   const [items, setItems] = useState<Item[]>([
-    { id: "1", content: "Item 1", groupId: null },
-    { id: "2", content: "Item 2", groupId: null },
-    { id: "3", content: "Item 3", groupId: null },
-    { id: "4", content: "Item 4", groupId: null },
-    { id: "5", content: "Item 5", groupId: null },
-    { id: "6", content: "Item 6", groupId: null },
+    { id: "1", content: "1", groupId: null },
+    { id: "2", content: "2", groupId: null },
+    { id: "3", content: "3", groupId: null },
+    { id: "4", content: "4", groupId: null },
+    { id: "5", content: "5", groupId: null },
+    { id: "6", content: "6", groupId: null },
   ]);
 
   const [groups, setGroups] = useState<Group[]>([]);
@@ -137,7 +137,7 @@ const App: React.FC = () => {
     // 更新分组列表（添加新分组并过滤空分组）
     const updatedGroups = filterEmptyGroups(
       updatedItems,
-      [...groups, { id: newGroupId, name: newGroupName, collapsed: false }],
+      [...groups, { id: newGroupId, name: newGroupName, collapsed: true }],
       newGroupId
     );
 
@@ -246,7 +246,7 @@ const App: React.FC = () => {
             group.id === draggedItem.groupId ||
             group.id === targetItem.groupId
         ),
-        { id: newGroupId, name: newGroupName, collapsed: false },
+        { id: newGroupId, name: newGroupName, collapsed: true },
       ];
 
       setItems(updatedItems);
@@ -372,6 +372,55 @@ const App: React.FC = () => {
             backgroundColor: "#e3f2fd",
           }}
         >
+          {/* 已分组的项目 */}
+          {groups.map((group) => (
+            <div key={group.id} className="group-container">
+              <Dropdown menu={getGroupMenu(group.id)} trigger={["contextMenu"]}>
+                <div style={{}}>
+                  {group.collapsed ? (
+                    <Droppable droppableId={group.id}>
+                      {(provided: DroppableProvided) => (
+                        <div
+                          {...provided.droppableProps}
+                          ref={provided.innerRef}
+                          style={{
+                            borderRadius: "0 0 8px 8px",
+                            width: 80,
+                          }}
+                        >
+                          <Row gutter={[16, 16]}>
+                            {getGroupItems(group.id)
+                              .slice(0, 4)
+                              .map((item, index) => (
+                                <Col span={12}>
+                                  <div
+                                    style={{
+                                      // padding: "12px",
+                                      borderRadius: "4px",
+                                      color: "#000",
+                                      border: "1px solid #90caf9",
+                                    }}
+                                  >
+                                    {item.content}
+                                  </div>
+                                </Col>
+                              ))}
+                          </Row>
+
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  ) : (
+                    <>
+                      <div>展开啦</div>
+                    </>
+                  )}
+                </div>
+              </Dropdown>
+            </div>
+          ))}
+
           {/* 未分组的项目 */}
           {getGroupItems(null).length > 0 && (
             <Droppable droppableId="ungrouped" isCombineEnabled={true}>
@@ -380,9 +429,9 @@ const App: React.FC = () => {
                   {...provided.droppableProps}
                   ref={provided.innerRef}
                   style={{
-                    padding: "15px",
+                    padding: "16px",
                     borderRadius: "8px",
-                    minWidth: "250px",
+                    width: 80,
                   }}
                 >
                   {getGroupItems(null).map((item, index) => (
@@ -406,7 +455,6 @@ const App: React.FC = () => {
                               //   }
                               style={{
                                 padding: "12px",
-                                margin: "8px 0",
                                 backgroundColor:
                                   snapshot.combineTargetFor && ableToCombine
                                     ? "#bbdefb"
@@ -442,96 +490,6 @@ const App: React.FC = () => {
               )}
             </Droppable>
           )}
-          {/* 已分组的项目 */}
-          {groups.map((group) => (
-            <div key={group.id} className="group-container">
-              <Dropdown menu={getGroupMenu(group.id)} trigger={["contextMenu"]}>
-                <div
-                  style={{
-                    display: "flex",
-                    // backgroundColor: "#e3f2fd",
-                    alignItems: "center",
-                    gap: "8px",
-                    padding: "10px",
-                    color: "#745823",
-                    borderRadius: group.collapsed ? "8px" : "8px  8px 0 0",
-                  }}
-                >
-                  <span
-                    onClick={() => toggleGroupCollapse(group.id)}
-                    style={{ cursor: "pointer" }}
-                  >
-                    {group.collapsed ? "▶" : "▼"}
-                  </span>
-                  {editingGroupId === group.id ? (
-                    <Input
-                      value={newGroupName}
-                      onChange={(e) => setNewGroupName(e.target.value)}
-                      onPressEnter={() => saveGroupName(group.id)}
-                      onBlur={() => saveGroupName(group.id)}
-                      autoFocus
-                      style={{ width: "200px" }}
-                    />
-                  ) : (
-                    <h3 style={{ margin: 0 }}>{group.name}</h3>
-                  )}
-                </div>
-              </Dropdown>
-
-              {!group.collapsed && (
-                <Droppable droppableId={group.id}>
-                  {(provided: DroppableProvided) => (
-                    <div
-                      {...provided.droppableProps}
-                      ref={provided.innerRef}
-                      style={{
-                        padding: "15px",
-                        borderRadius: "0 0 8px 8px",
-                        minWidth: "250px",
-                      }}
-                    >
-                      {getGroupItems(group.id).map((item, index) => (
-                        <Dropdown
-                          key={item.id}
-                          menu={getItemMenu(item.id)}
-                          trigger={["contextMenu"]}
-                        >
-                          <div>
-                            <Draggable draggableId={item.id} index={index}>
-                              {(
-                                provided: DraggableProvided,
-                                snapshot: DraggableStateSnapshot
-                              ) => (
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  {...provided.dragHandleProps}
-                                  style={{
-                                    padding: "12px",
-                                    margin: "8px 0",
-                                    background: snapshot.isDragging
-                                      ? "#bbdefb"
-                                      : "white",
-                                    borderRadius: "4px",
-                                    color: "#000",
-                                    border: "1px solid #90caf9",
-                                    ...provided.draggableProps.style,
-                                  }}
-                                >
-                                  {item.content}
-                                </div>
-                              )}
-                            </Draggable>
-                          </div>
-                        </Dropdown>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              )}
-            </div>
-          ))}
         </div>
       </DragDropContext>
     </div>
