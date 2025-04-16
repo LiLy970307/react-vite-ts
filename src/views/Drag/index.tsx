@@ -40,6 +40,7 @@ const App: React.FC = () => {
   const [combnieItemId, setCombineItemId] = useState<string | null>(null);
   const [ableToCombine, setAbleToCombine] = useState(false);
   const [timer, setTimer] = useState<NodeJS.Timeout | null>(null);
+  const [currentAppId, setCurrentAppId] = useState<string | null>(null);
 
   // 工具函数：检查分组是否为空
   const isGroupEmpty = (groupId: string | null, items: Item[]): boolean => {
@@ -177,6 +178,22 @@ const App: React.FC = () => {
     message.success("已从分组中移除");
   };
 
+  // 删除分组
+  const deleteGroup = (groupId: string) => {
+    // 1. 将该分组的所有项目移动到未分组
+    const updatedItems = items.map((item) =>
+      item.groupId === groupId ? { ...item, groupId: null } : item
+    );
+
+    // 2. 从分组列表中移除该分组
+    const updatedGroups = groups.filter((group) => group.id !== groupId);
+
+    // 3. 更新状态
+    setItems(updatedItems);
+    setGroups(updatedGroups);
+    message.success("分组已删除，项目已移至未分组");
+  };
+
   // 开始编辑分组名称
   const startEditingGroup = (groupId: string, currentName: string) => {
     setEditingGroupId(groupId);
@@ -210,10 +227,11 @@ const App: React.FC = () => {
 
   // 处理拖拽结束
   const onDragEnd = (result: DropResult) => {
-    const { source, destination, combine, draggableId } = result;
+    const { source, destination, combine, draggableId, type } = result;
     console.log(result);
 
     if (combine && !ableToCombine) return;
+    console.log("0--==--=-=-=-", type);
 
     // 1. 处理合并操作（拖拽到另一项上）
     if (combine) {
@@ -359,8 +377,27 @@ const App: React.FC = () => {
           : "折叠分组",
         onClick: () => toggleGroupCollapse(groupId),
       },
+      {
+        key: "delete-group",
+        label: "删除分组",
+        danger: true,
+        onClick: () => deleteGroup(groupId),
+      },
     ],
   });
+
+  // 为分组内的项目创建右键菜单
+  const getGroupItemMenu = (itemId: string, groupId: string): MenuProps => {
+    return {
+      items: [
+        {
+          key: "remove-to-group",
+          label: "从分组中移除",
+          onClick: () => removeFromGroup(itemId),
+        },
+      ],
+    };
+  };
 
   return (
     <div style={{ padding: "20px", minHeight: "100vh" }}>
@@ -369,57 +406,152 @@ const App: React.FC = () => {
           style={{
             display: "flex",
             flexDirection: "column",
+            height: "100vh",
             backgroundColor: "#e3f2fd",
           }}
         >
           {/* 已分组的项目 */}
-          {groups.map((group) => (
-            <div key={group.id} className="group-container">
-              <Dropdown menu={getGroupMenu(group.id)} trigger={["contextMenu"]}>
-                <div style={{}}>
-                  {group.collapsed ? (
+          <div style={{ padding: 16 }}>
+            {groups.map((group, index) => (
+              <div key={group.id}>
+                <Dropdown
+                  menu={getGroupMenu(group.id)}
+                  trigger={["contextMenu"]}
+                >
+                  <div onClick={() => toggleGroupCollapse(group.id)}>
                     <Droppable droppableId={group.id}>
                       {(provided: DroppableProvided) => (
                         <div
                           {...provided.droppableProps}
                           ref={provided.innerRef}
                           style={{
-                            borderRadius: "0 0 8px 8px",
-                            width: 80,
+                            border: "1px solid #000",
+                            borderRadius: "8px",
+                            padding: 8,
+                            marginBottom: 8,
+                            height: 56,
                           }}
                         >
-                          <Row gutter={[16, 16]}>
-                            {getGroupItems(group.id)
-                              .slice(0, 4)
-                              .map((item, index) => (
-                                <Col span={12}>
-                                  <div
-                                    style={{
-                                      // padding: "12px",
-                                      borderRadius: "4px",
-                                      color: "#000",
-                                      border: "1px solid #90caf9",
-                                    }}
-                                  >
-                                    {item.content}
-                                  </div>
-                                </Col>
-                              ))}
-                          </Row>
-
+                          <div>
+                            <Draggable
+                              draggableId={group.id}
+                              index={index}
+                              key={group.id}
+                            >
+                              {(provided) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  onClick={() => {
+                                    setCurrentAppId(group.id);
+                                  }}
+                                  style={{
+                                    ...provided.draggableProps.style,
+                                  }}
+                                >
+                                  <Row gutter={[12, 12]}>
+                                    {getGroupItems(group.id)
+                                      .slice(0, 4)
+                                      .map((item) => (
+                                        <Col span={12} key={item.id}>
+                                          <div
+                                            style={{
+                                              borderRadius: "4px",
+                                              color: "#fff",
+                                              backgroundColor: "#000",
+                                            }}
+                                          >
+                                            {item.content}
+                                          </div>
+                                        </Col>
+                                      ))}
+                                  </Row>
+                                </div>
+                              )}
+                            </Draggable>
+                          </div>
                           {provided.placeholder}
                         </div>
                       )}
                     </Droppable>
-                  ) : (
-                    <>
-                      <div>展开啦</div>
-                    </>
-                  )}
-                </div>
-              </Dropdown>
-            </div>
-          ))}
+                  </div>
+                </Dropdown>
+
+                {/* 展开分组项目 */}
+                {!group.collapsed && (
+                  <Droppable droppableId={group.id}>
+                    {(provided) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        style={{
+                          padding: "0 24px",
+                          borderRadius: 8,
+                          // display: "flex",
+                          // flexDirection: "column",
+                          // alignItems:"center"
+                        }}
+                      >
+                        {getGroupItems(group.id).map((item, index) => (
+                          <Dropdown
+                            key={item.id}
+                            menu={getItemMenu(item.id)}
+                            trigger={["contextMenu"]}
+                          >
+                            <div
+                              style={{
+                                marginBottom: 6,
+                                cursor: "pointer",
+                                width: 42,
+                              }}
+                            >
+                              <Draggable
+                                draggableId={item.id}
+                                index={index}
+                                key={item.id}
+                              >
+                                {(provided) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    onClick={() => {
+                                      setCurrentAppId(item.id);
+                                    }}
+                                    style={{
+                                      padding: 2,
+                                      borderRadius: 4,
+                                      color: "#fff",
+                                      border:
+                                        currentAppId === item.id
+                                          ? "1px solid red"
+                                          : "",
+                                      ...provided.draggableProps.style,
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        borderRadius: 4,
+                                        background: "#000",
+                                      }}
+                                    >
+                                      {item.content}
+                                    </div>
+                                  </div>
+                                )}
+                              </Draggable>
+                            </div>
+                          </Dropdown>
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                )}
+              </div>
+            ))}
+          </div>
 
           {/* 未分组的项目 */}
           {getGroupItems(null).length > 0 && (
@@ -429,9 +561,7 @@ const App: React.FC = () => {
                   {...provided.droppableProps}
                   ref={provided.innerRef}
                   style={{
-                    padding: "16px",
-                    borderRadius: "8px",
-                    width: 80,
+                    padding: 32,
                   }}
                 >
                   {getGroupItems(null).map((item, index) => (
@@ -440,7 +570,11 @@ const App: React.FC = () => {
                       menu={getItemMenu(item.id)}
                       trigger={["contextMenu"]}
                     >
-                      <div>
+                      <div
+                        style={{
+                          marginBottom: 6,
+                        }}
+                      >
                         <Draggable draggableId={item.id} index={index}>
                           {(
                             provided: DraggableProvided,
@@ -453,8 +587,11 @@ const App: React.FC = () => {
                               //   className={
                               //     snapshot.combineWith ? "combine-highlight" : ""
                               //   }
+                              onClick={() => {
+                                setCurrentAppId(item.id);
+                              }}
                               style={{
-                                padding: "12px",
+                                padding: 4,
                                 backgroundColor:
                                   snapshot.combineTargetFor && ableToCombine
                                     ? "#bbdefb"
@@ -464,17 +601,20 @@ const App: React.FC = () => {
                                   : "none", // 仅在激活时应用
                                 // 强制重绘
                                 transform: "translateZ(0)",
-                                borderRadius: "4px",
+                                borderRadius: 4,
+                                border:
+                                  currentAppId === item.id
+                                    ? "1px solid red"
+                                    : "1px solid #000",
                                 ...provided.draggableProps.style,
                               }}
                             >
                               <div
                                 style={{
-                                  padding: "12px",
-                                  background: "white",
-                                  borderRadius: "4px",
-                                  border: "1px solid #ddd",
-                                  color: "#000",
+                                  padding: "8px 16px",
+                                  background: "#000",
+                                  borderRadius: 4,
+                                  color: "#fff",
                                 }}
                               >
                                 {item.content}
