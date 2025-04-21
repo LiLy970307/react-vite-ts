@@ -432,45 +432,44 @@ const App: React.FC = () => {
                             height: 56,
                           }}
                         >
-                          <div>
-                            <Draggable
-                              draggableId={group.id}
-                              index={index}
-                              key={group.id}
-                            >
-                              {(provided) => (
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  {...provided.dragHandleProps}
-                                  onClick={() => {
-                                    setCurrentAppId(group.id);
-                                  }}
-                                  style={{
-                                    ...provided.draggableProps.style,
-                                  }}
-                                >
-                                  <Row gutter={[12, 12]}>
-                                    {getGroupItems(group.id)
-                                      .slice(0, 4)
-                                      .map((item) => (
-                                        <Col span={12} key={item.id}>
-                                          <div
-                                            style={{
-                                              borderRadius: "4px",
-                                              color: "#fff",
-                                              backgroundColor: "#000",
-                                            }}
-                                          >
-                                            {item.content}
-                                          </div>
-                                        </Col>
-                                      ))}
-                                  </Row>
-                                </div>
-                              )}
-                            </Draggable>
-                          </div>
+                          <Row gutter={[12, 12]}>
+                            {getGroupItems(group.id)
+                              .slice(0, 4)
+                              .map((item, i) => (
+                                <Col span={12} key={item.id}>
+                                  <Draggable
+                                    draggableId={item.id}
+                                    index={i}
+                                    key={item.id}
+                                  >
+                                    {(provided) => (
+                                      <div
+                                        ref={provided.innerRef}
+                                        // {...provided.draggableProps}
+                                        {...provided.dragHandleProps}
+                                        onClick={() => {
+                                          setCurrentAppId(group.id);
+                                        }}
+                                        // style={{
+                                        //   ...provided.draggableProps.style,
+                                        // }}
+                                      >
+                                        <div
+                                          style={{
+                                            borderRadius: "4px",
+                                            color: "#fff",
+                                            backgroundColor: "#000",
+                                          }}
+                                        >
+                                          {item.content}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </Draggable>
+                                </Col>
+                              ))}
+                          </Row>
+
                           {provided.placeholder}
                         </div>
                       )}
