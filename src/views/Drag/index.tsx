@@ -448,21 +448,16 @@ const App: React.FC = () => {
                                         // {...provided.draggableProps}
                                         {...provided.dragHandleProps}
                                         onClick={() => {
-                                          setCurrentAppId(group.id);
+                                          setCurrentAppId(item.id);
                                         }}
-                                        // style={{
-                                        //   ...provided.draggableProps.style,
-                                        // }}
+                                        style={{
+                                          borderRadius: "4px",
+                                          color: "#fff",
+                                          backgroundColor: "#000",
+                                          ...provided.draggableProps.style,
+                                        }}
                                       >
-                                        <div
-                                          style={{
-                                            borderRadius: "4px",
-                                            color: "#fff",
-                                            backgroundColor: "#000",
-                                          }}
-                                        >
-                                          {item.content}
-                                        </div>
+                                        {item.content}
                                       </div>
                                     )}
                                   </Draggable>
@@ -574,7 +569,11 @@ const App: React.FC = () => {
                           marginBottom: 6,
                         }}
                       >
-                        <Draggable draggableId={item.id} index={index}>
+                        <Draggable
+                          draggableId={item.id}
+                          index={index}
+                          key={item.id}
+                        >
                           {(
                             provided: DraggableProvided,
                             snapshot: DraggableStateSnapshot
