@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   DragDropContext,
   Droppable,
@@ -9,7 +9,10 @@ import {
   DraggableStateSnapshot,
   DroppableProvided,
 } from "@hello-pangea/dnd";
-import { Dropdown, Menu, message, Input, Row, Col } from "antd";
+import { Resizable } from "re-resizable";
+
+import { Dropdown, Menu, message, Button, Row, Col } from "antd";
+import { StepForwardOutlined, StepBackwardOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 
 interface Item {
@@ -24,6 +27,14 @@ interface Group {
   collapsed: boolean; // 新增折叠状态
 }
 
+const SMALL_MODE_WIDTH = 115; // 小模式固定宽度
+const MIN_WIDTH = 190; // 展开的最小宽度
+const MAX_WIDTH = 260; // 展开最大宽度
+
+const SMALL_ITEM_WIDTH = 55; // 小项目的宽度
+const SMALL_GROUP_WIDTH = 56; // 小分组的宽度
+const LARGE_GROUP_WIDTH = 100; // 大项目的宽度
+
 const App: React.FC = () => {
   const [items, setItems] = useState<Item[]>([
     { id: "1", content: "1", groupId: null },
@@ -34,6 +45,8 @@ const App: React.FC = () => {
     { id: "6", content: "6", groupId: null },
   ]);
 
+  const menuRef = useRef<any>(null);
+  const [width, setWidth] = useState(SMALL_MODE_WIDTH); // 初始宽度
   const [groups, setGroups] = useState<Group[]>([]);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [newGroupName, setNewGroupName] = useState("");
@@ -41,7 +54,7 @@ const App: React.FC = () => {
   const [ableToCombine, setAbleToCombine] = useState(false);
   const [timer, setTimer] = useState<NodeJS.Timeout | null>(null);
   const [currentAppId, setCurrentAppId] = useState<string | null>(null);
-
+  const [isSmallMode, setIsSmallMode] = useState(true);
   // 工具函数：检查分组是否为空
   const isGroupEmpty = (groupId: string | null, items: Item[]): boolean => {
     return !items.some((item) => item.groupId === groupId);
@@ -225,6 +238,13 @@ const App: React.FC = () => {
     );
   };
 
+  // 添加处理 collapsed 后缀的逻辑
+  const getOriginalGroupId = (droppableId: string) => {
+    return droppableId.endsWith("collapsed")
+      ? droppableId.replace("collapsed", "")
+      : droppableId;
+  };
+
   // 处理拖拽结束
   const onDragEnd = (result: DropResult) => {
     const { source, destination, combine, draggableId, type } = result;
@@ -283,10 +303,16 @@ const App: React.FC = () => {
       return;
     }
 
+    // 修改这里 - 使用 getOriginalGroupId 处理 droppableId
     const sourceGroupId =
-      source.droppableId === "ungrouped" ? null : source.droppableId;
+      getOriginalGroupId(source.droppableId) === "ungrouped"
+        ? null
+        : getOriginalGroupId(source.droppableId);
+
     const destGroupId =
-      destination.droppableId === "ungrouped" ? null : destination.droppableId;
+      getOriginalGroupId(destination.droppableId) === "ungrouped"
+        ? null
+        : getOriginalGroupId(destination.droppableId);
 
     // 创建新数组以避免直接修改状态
     const newItems = [...items];
@@ -399,95 +425,274 @@ const App: React.FC = () => {
     };
   };
 
+  // 处理窗口大小变化
+  const handleResizeStop = (e: Event, data: any) => {
+    // 更新宽度值
+    setWidth(data.size.width);
+  };
+
+  // 处理窗口大小变化
+  const onResize = useCallback(() => {
+    const width = menuRef.current.size.width;
+    console.log(width);
+    setWidth(width);
+  }, [setWidth]);
+
   return (
-    <div style={{ padding: "20px", minHeight: "100vh" }}>
-      <DragDropContext onDragEnd={onDragEnd} onDragUpdate={onDragUpdate}>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            height: "100vh",
-            backgroundColor: "#e3f2fd",
-          }}
-        >
-          {/* 已分组的项目 */}
-          <div style={{ padding: 16 }}>
-            {groups.map((group, index) => (
-              <div key={group.id}>
-                <Dropdown
-                  menu={getGroupMenu(group.id)}
-                  trigger={["contextMenu"]}
-                >
-                  <div onClick={() => toggleGroupCollapse(group.id)}>
-                    <Droppable droppableId={group.id}>
-                      {(provided: DroppableProvided) => (
-                        <div
-                          {...provided.droppableProps}
-                          ref={provided.innerRef}
-                          style={{
-                            border: "1px solid #000",
-                            borderRadius: "8px",
-                            padding: 8,
-                            marginBottom: 8,
-                            height: 56,
-                          }}
-                        >
-                          <Row gutter={[12, 12]}>
-                            {getGroupItems(group.id)
-                              .slice(0, 4)
-                              .map((item, i) => (
-                                <Col span={12} key={item.id}>
-                                  <Draggable
-                                    draggableId={item.id}
-                                    index={i}
-                                    key={item.id}
-                                  >
-                                    {(provided) => (
+    <Resizable
+      ref={menuRef}
+      // defaultSize={{
+      //   width: isSmallMode ? SMALL_MODE_WIDTH : width,
+      // }}
+      size={{
+        width: isSmallMode ? SMALL_MODE_WIDTH : width,
+      }}
+      onResize={onResize}
+      // onResizeStop={handleResizeStop}
+      minWidth={isSmallMode ? SMALL_MODE_WIDTH : MIN_WIDTH} // 最小宽度限制
+      maxWidth={isSmallMode ? SMALL_MODE_WIDTH : MAX_WIDTH} // 最大宽度限制
+      enable={{
+        top: false,
+        right: true,
+        bottom: false,
+        left: false,
+        topRight: false,
+        bottomRight: false,
+        bottomLeft: false,
+        topLeft: false,
+      }}
+      style={{
+        width: isSmallMode ? SMALL_MODE_WIDTH : width,
+        backgroundColor: "#e3f2fd",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          height: "90vh",
+          padding: "12px 0",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <DragDropContext onDragEnd={onDragEnd} onDragUpdate={onDragUpdate}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            {/* 已分组的项目 */}
+            {groups.length > 0 && (
+              <>
+                {groups.map((group, index) => (
+                  <div key={group.id}>
+                    <Dropdown
+                      key={group.id}
+                      menu={getGroupMenu(group.id)}
+                      trigger={["contextMenu"]}
+                    >
+                      <div
+                        onClick={() => toggleGroupCollapse(group.id)}
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Droppable droppableId={group.id}>
+                          {(provided: DroppableProvided, snapshot) => (
+                            <div
+                              {...provided.droppableProps}
+                              ref={provided.innerRef}
+                              style={{
+                                border: "1px solid #000",
+                                borderRadius: "8px",
+                                padding: 6,
+                                marginBottom: 8,
+                                backgroundColor: snapshot.draggingOverWith
+                                  ? "#bbdefb"
+                                  : "transparent",
+                                width: width - (isSmallMode ? 46 : 70),
+                                height: width - (isSmallMode ? 46 : 70),
+                              }}
+                            >
+                              <Row gutter={[12, 12]}>
+                                {getGroupItems(group.id)
+                                  .slice(0, 4)
+                                  .map((item, i) => (
+                                    <Col span={12} key={item.id}>
                                       <div
-                                        ref={provided.innerRef}
-                                        // {...provided.draggableProps}
-                                        {...provided.dragHandleProps}
-                                        onClick={() => {
-                                          setCurrentAppId(item.id);
-                                        }}
                                         style={{
+                                          height:
+                                            (width -
+                                              (isSmallMode ? 46 : 70) -
+                                              12) /
+                                            2,
                                           borderRadius: "4px",
                                           color: "#fff",
                                           backgroundColor: "#000",
-                                          ...provided.draggableProps.style,
+                                          display: "flex",
+                                          justifyContent: "center",
+                                          alignItems: "center",
                                         }}
                                       >
                                         {item.content}
                                       </div>
-                                    )}
-                                  </Draggable>
+                                    </Col>
+                                  ))}
+                              </Row>
+
+                              {provided.placeholder}
+                            </div>
+                          )}
+                        </Droppable>
+                      </div>
+                    </Dropdown>
+
+                    {/* 展开分组项目 */}
+                    {!group.collapsed && (
+                      <Droppable droppableId={group.id + "collapsed"}>
+                        {(provided) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            style={{
+                              width: width - (isSmallMode ? 31 : 55),
+                            }}
+                          >
+                            <Row gutter={[12, 12]}>
+                              {getGroupItems(group.id).map((item, index) => (
+                                <Col
+                                  span={
+                                    isSmallMode
+                                      ? 24
+                                      : !isSmallMode && width === MAX_WIDTH
+                                      ? 6
+                                      : 8
+                                  }
+                                  key={item.id}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                  }}
+                                >
+                                  <Dropdown
+                                    key={item.id}
+                                    menu={getItemMenu(item.id)}
+                                    trigger={["contextMenu"]}
+                                  >
+                                    <div
+                                      style={{
+                                        marginBottom: 6,
+                                        cursor: "pointer",
+                                      }}
+                                    >
+                                      <Draggable
+                                        draggableId={item.id}
+                                        index={index}
+                                        key={item.id}
+                                      >
+                                        {(provided) => (
+                                          <div
+                                            ref={provided.innerRef}
+                                            {...provided.draggableProps}
+                                            {...provided.dragHandleProps}
+                                            onClick={() => {
+                                              setCurrentAppId(item.id);
+                                            }}
+                                            style={{
+                                              padding: 2,
+                                              borderRadius: 4,
+                                              color: "#fff",
+                                              // width: 42,
+                                              // height: 42,
+                                              display: "flex",
+                                              justifyContent: "center",
+                                              alignItems: "center",
+                                              border:
+                                                currentAppId === item.id
+                                                  ? "1px solid red"
+                                                  : "",
+                                              ...provided.draggableProps.style,
+                                            }}
+                                          >
+                                            <div
+                                              style={{
+                                                width: 38,
+                                                height: 38,
+                                                borderRadius: 4,
+                                                background: "#000",
+                                                display: "flex",
+                                                justifyContent: "center",
+                                                alignItems: "center",
+                                              }}
+                                            >
+                                              {item.content}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </Draggable>
+                                    </div>
+                                  </Dropdown>
                                 </Col>
                               ))}
-                          </Row>
-
-                          {provided.placeholder}
-                        </div>
-                      )}
-                    </Droppable>
+                            </Row>
+                            {provided.placeholder}
+                          </div>
+                        )}
+                      </Droppable>
+                    )}
                   </div>
-                </Dropdown>
+                ))}
+              </>
+            )}
 
-                {/* 展开分组项目 */}
-                {!group.collapsed && (
-                  <Droppable droppableId={group.id}>
-                    {(provided) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        style={{
-                          padding: "0 24px",
-                          borderRadius: 8,
-                          // display: "flex",
-                          // flexDirection: "column",
-                          // alignItems:"center"
-                        }}
-                      >
-                        {getGroupItems(group.id).map((item, index) => (
+            {/* 未分组的项目 */}
+            {getGroupItems(null).length > 0 && (
+              <Droppable
+                droppableId="ungrouped"
+                direction={isSmallMode ? "vertical" : "horizontal"}
+                isCombineEnabled={true}
+              >
+                {(provided: DroppableProvided) => (
+                  <div
+                    {...provided.droppableProps}
+                    ref={provided.innerRef}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexDirection: "column",
+                      gap: 16,
+                    }}
+                  >
+                    <Row
+                      gutter={[12, 12]}
+                      style={{
+                        width: width,
+                      }}
+                    >
+                      {getGroupItems(null).map((item, index) => (
+                        <Col
+                          span={
+                            isSmallMode
+                              ? 24
+                              : !isSmallMode && width === MAX_WIDTH
+                              ? 8
+                              : 12
+                          }
+                          key={item.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
                           <Dropdown
                             key={item.id}
                             menu={getItemMenu(item.id)}
@@ -495,9 +700,8 @@ const App: React.FC = () => {
                           >
                             <div
                               style={{
-                                marginBottom: 6,
-                                cursor: "pointer",
-                                width: 42,
+                                width: SMALL_ITEM_WIDTH,
+                                height: SMALL_ITEM_WIDTH,
                               }}
                             >
                               <Draggable
@@ -505,29 +709,52 @@ const App: React.FC = () => {
                                 index={index}
                                 key={item.id}
                               >
-                                {(provided) => (
+                                {(
+                                  provided: DraggableProvided,
+                                  snapshot: DraggableStateSnapshot
+                                ) => (
                                   <div
                                     ref={provided.innerRef}
                                     {...provided.draggableProps}
                                     {...provided.dragHandleProps}
+                                    //   className={
+                                    //     snapshot.combineWith ? "combine-highlight" : ""
+                                    //   }
                                     onClick={() => {
                                       setCurrentAppId(item.id);
                                     }}
                                     style={{
-                                      padding: 2,
+                                      padding: 4,
+                                      width: SMALL_ITEM_WIDTH - 8,
+                                      height: SMALL_ITEM_WIDTH - 8,
+                                      backgroundColor:
+                                        snapshot.combineTargetFor &&
+                                        ableToCombine
+                                          ? "#bbdefb"
+                                          : "transparent",
+                                      transition: snapshot.combineTargetFor
+                                        ? "background-color 2s ease"
+                                        : "none", // 仅在激活时应用
+                                      // 强制重绘
+                                      transform: "translateZ(0)",
                                       borderRadius: 4,
-                                      color: "#fff",
                                       border:
                                         currentAppId === item.id
                                           ? "1px solid red"
-                                          : "",
+                                          : "1px solid #000",
                                       ...provided.draggableProps.style,
                                     }}
                                   >
                                     <div
                                       style={{
-                                        borderRadius: 4,
                                         background: "#000",
+                                        borderRadius: 4,
+                                        color: "#fff",
+                                        display: "flex",
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                        height: "100%",
+                                        width: "100%",
                                       }}
                                     >
                                       {item.content}
@@ -537,100 +764,38 @@ const App: React.FC = () => {
                               </Draggable>
                             </div>
                           </Dropdown>
-                        ))}
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                )}
-              </div>
-            ))}
-          </div>
+                        </Col>
+                      ))}
+                    </Row>
 
-          {/* 未分组的项目 */}
-          {getGroupItems(null).length > 0 && (
-            <Droppable droppableId="ungrouped" isCombineEnabled={true}>
-              {(provided: DroppableProvided) => (
-                <div
-                  {...provided.droppableProps}
-                  ref={provided.innerRef}
-                  style={{
-                    padding: 32,
-                  }}
-                >
-                  {getGroupItems(null).map((item, index) => (
-                    <Dropdown
-                      key={item.id}
-                      menu={getItemMenu(item.id)}
-                      trigger={["contextMenu"]}
-                    >
-                      <div
-                        style={{
-                          marginBottom: 6,
-                        }}
-                      >
-                        <Draggable
-                          draggableId={item.id}
-                          index={index}
-                          key={item.id}
-                        >
-                          {(
-                            provided: DraggableProvided,
-                            snapshot: DraggableStateSnapshot
-                          ) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              //   className={
-                              //     snapshot.combineWith ? "combine-highlight" : ""
-                              //   }
-                              onClick={() => {
-                                setCurrentAppId(item.id);
-                              }}
-                              style={{
-                                padding: 4,
-                                backgroundColor:
-                                  snapshot.combineTargetFor && ableToCombine
-                                    ? "#bbdefb"
-                                    : "transparent",
-                                transition: snapshot.combineTargetFor
-                                  ? "background-color 2s ease"
-                                  : "none", // 仅在激活时应用
-                                // 强制重绘
-                                transform: "translateZ(0)",
-                                borderRadius: 4,
-                                border:
-                                  currentAppId === item.id
-                                    ? "1px solid red"
-                                    : "1px solid #000",
-                                ...provided.draggableProps.style,
-                              }}
-                            >
-                              <div
-                                style={{
-                                  padding: "8px 16px",
-                                  background: "#000",
-                                  borderRadius: 4,
-                                  color: "#fff",
-                                }}
-                              >
-                                {item.content}
-                              </div>
-                            </div>
-                          )}
-                        </Draggable>
-                      </div>
-                    </Dropdown>
-                  ))}
-                  {provided.placeholder}
-                </div>
-              )}
-            </Droppable>
-          )}
-        </div>
-      </DragDropContext>
-    </div>
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            )}
+          </div>
+        </DragDropContext>
+        {isSmallMode ? (
+          <Button
+            type="primary"
+            icon={<StepForwardOutlined />}
+            onClick={() => {
+              setIsSmallMode(false);
+              setWidth(MIN_WIDTH);
+            }}
+          ></Button>
+        ) : (
+          <Button
+            type="primary"
+            icon={<StepBackwardOutlined />}
+            onClick={() => {
+              setIsSmallMode(true);
+              setWidth(SMALL_MODE_WIDTH);
+            }}
+          ></Button>
+        )}
+      </div>
+    </Resizable>
   );
 };
 
